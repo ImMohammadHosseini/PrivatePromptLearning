@@ -24,7 +24,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 #TRAIN = True
-BATCH_SIZE = 1024
+BATCH_SIZE = 512
 P_LENGTH = 50
 LR = 0.001
 NOISE_SCALE = 4
@@ -37,9 +37,9 @@ def init (dataset_name, model_name, method_name, epsilon):
     dataWorkload = eval(dataset_name)(model_name)
     llm = AutoModelForSequenceClassification.from_pretrained("prajjwal1/"+ model_name)
     print(llm)
-    prompt_learning = PromptDPSGD(method_name, epsilon, llm, TRAINING_ITERATION, 
-                     MAX_GRADIENT_NORM, dataWorkload.sequence_length, 
-                     llm.bert.embeddings.word_embeddings.weight.size(1),
+    prompt_learning = PromptDPSGD(method_name, epsilon, llm, SAMPLING_RATE, TRAINING_ITERATION, 
+                     MAX_GRADIENT_NORM, NOISE_SCALE, dataWorkload.sequence_length, 
+                     llm.bert.embeddings.word_embeddings.weight.size(1), LR
                      )
     return dataWorkload, llm, prompt_learning
 if __name__ == '__main__':

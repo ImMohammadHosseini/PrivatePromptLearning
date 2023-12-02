@@ -8,7 +8,6 @@ from datasets import Dataset
 
 from transformers import AutoTokenizer
 
-
 class sst2():
     def __init__(self, model_name):
         dataset_path = 'dataWorkload/datasets/SST-2/'
@@ -31,20 +30,20 @@ class sst2():
         
         
         
-        label_train = train_data[train_data.columns.values[1]].values.tolist() 
-        label2hot = {
-            0: [1,0],
-            1: [0,1]
-            }
-        train_data[train_data.columns.values[1]] = [
-            label2hot[l] for l in label_train]
+        #label_train = train_data[train_data.columns.values[1]].values.tolist() 
+        #label2hot = {
+        #    0: [1,0],
+        #    1: [0,1]
+        #    }
+        #train_data[train_data.columns.values[1]] = [
+        #    label2hot[l] for l in label_train]
         self.train_dataset = Dataset.from_dict(train_data).with_format("torch")
         
-        self.train_dataset = self.train_dataset.map(self.tokenize_function, 
-                                                    batched=True)
+        self.train_dataset = self.train_dataset.map(self.tokenize_function)
+        
     def tokenize_function(self, examples):
         return self.tokenizer(examples["sentence"], truncation=True, 
-                         padding="max_length", max_length=50)
+                         padding="max_length", max_length=self.sequence_length)
     
    
     
