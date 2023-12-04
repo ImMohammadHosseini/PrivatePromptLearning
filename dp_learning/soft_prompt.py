@@ -5,17 +5,17 @@
 import torch 
 import random
 from torch.nn import CrossEntropyLoss
+from .privacy_cost import PrivacyCost
 
-
-class PromptDPSGD():
-    def __init__(self, method, epsilon, llm, sampling_rate, training_iteration, 
+class Soft_Prompt():
+    def __init__(self, llm, epsilon,delta, sampling_rate, training_iteration, 
                  max_gradient_norm, noise_scale, sequence_length, embedding_dim, 
                  lr
                  ):
-        self.method = method
-        #TODO if method
-        self.epsilon = epsilon
+        
         self.llm = llm
+        self.epsilon = epsilon
+        self.delta = delta
         self.sampling_rate = sampling_rate
         self.training_iteration = training_iteration
         self.max_gradient_norm = max_gradient_norm
@@ -24,6 +24,13 @@ class PromptDPSGD():
         self.embedding_dim = embedding_dim
         self.lr = lr
         self.loss_fn = CrossEntropyLoss()
+        self.freeze_model_layers()
+        
+        self.total_parameter = 0
+        
+    def freeze_model_layers (self) :
+        for p in self.llm.parameters():
+            p.requires_grad = False
         
     def _llm_inner_embedding_output (self, xi, prompt_embedding):
         return self.llm.bert.embeddings(xi) + prompt_embedding
@@ -54,7 +61,7 @@ class PromptDPSGD():
                 gt_xi_clip = gt_xi/max(1, torch.norm(gt_xi, p=2)/self.max_gradient_norm)
                 gts.append(gt_xi_clip)
             gt_hat = (1/len(Bt_index))*(sum(gts)+torch.normal(
-                0, self.noise_scale**2*self.max_gradient_norm**2*torch.eye(
+                0, self.noise_scale*self.max_gradient_norm*torch.eye(
                     self.sequence_length, self.embedding_dim)).unsqueeze(0))
             pt=pt-(self.lr*gt_hat)
         
