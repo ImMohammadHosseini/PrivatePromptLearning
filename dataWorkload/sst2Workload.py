@@ -13,10 +13,10 @@ from torch.utils.data import TensorDataset
 from transformers.data.processors.utils import InputExample
 from transformers.data.processors.glue import glue_convert_examples_to_features
 from transformers import BertConfig, BertTokenizer, BertForSequenceClassification
-
+from torch.utils.data import DataLoader
 
 class sst2():
-    def __init__(self, model_name):
+    def __init__(self):
         dataset_path = 'dataWorkload/datasets/SST-2/'
         if not path.exists(dataset_path):
             #makedirs(dataset_path)
@@ -29,7 +29,8 @@ class sst2():
             remove(filename)        
         self.dataset_path = dataset_path+'SST-2/'
         train_data = pd.read_csv(self.dataset_path+'train.tsv', sep='\t')
-        
+        test_data = pd.read_csv(self.dataset_path+'test.tsv', sep='\t')
+
         self.sequence_length = max([len(train_data.iloc[i][0].split(' ')) 
                                     for i in range(len(train_data))])
         
@@ -52,6 +53,8 @@ class sst2():
         
         self.train_dataset = self._features_to_dataset(
             self._df_to_features(train_data, "train"))
+        self.test_dataset = self._features_to_dataset(
+            self._df_to_features(test_data, "test"))
         
         
     def _create_examples(self, df, set_type):
@@ -101,6 +104,12 @@ class sst2():
             all_input_ids, all_attention_mask, all_token_type_ids, all_labels
         )
         return dataset
+    
+    def get_dataloader (self, batch_size, set_type = 'train'):
+        if set_type == 'train':
+            return DataLoader(self.train_dataset, batch_size=batch_size)
+        elif set_type == 'test':
+            return DataLoader(self.test_dataset, batch_size=batch_size)
     
     #def tokenize_function(self, examples):
     #    return self.tokenizer(examples["sentence"], truncation=True, 
