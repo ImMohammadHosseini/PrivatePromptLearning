@@ -51,7 +51,7 @@ class Full_Fintune():
             accuracies = []
             with BatchMemoryManager(
                 data_loader=train_dataloader, 
-                max_physical_batch_size=256, 
+                max_physical_batch_size=16, 
                 optimizer=optimizer
             ) as memory_safe_data_loader:
                 for step, batch in enumerate(tqdm(memory_safe_data_loader)):

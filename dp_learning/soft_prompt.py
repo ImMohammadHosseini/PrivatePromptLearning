@@ -6,6 +6,8 @@ import torch
 import random
 from torch.nn import CrossEntropyLoss
 from torch.optim import AdamW
+from opacus import PrivacyEngine
+
 from opacus.utils.batch_memory_manager import BatchMemoryManager
 from tqdm.notebook import tqdm
 import numpy as np
@@ -34,23 +36,19 @@ class Soft_Prompt():
         self.freeze_model_layers()
         
         self.total_parameter = 0
+        self.privacy_engine = PrivacyEngine()
+
         
     def freeze_model_layers (self) :
         for p in self.llm.parameters():
             p.requires_grad = False
         
-    def _llm_inner_embedding_output (self, xi, prompt_embedding):
-        return self.llm.bert.embeddings(xi) + prompt_embedding
     
-    def _llm_withou_inner_embedding (self, embeddings_output):
-        yi = self.llm.bert.encoder(embeddings_output)
-        yi = self.llm.bert.pooler(yi[0])
-        yi = self.llm.dropout(yi)
-        return self.llm.classifier(yi)
     
     def test (self, test_dataloader):
+        self.llm.train()
         llm_model, optimizer, train_dataloader = self.privacy_engine.make_private_with_epsilon( 
-            module=self.model, optimizer=self.optimizer, data_loader=test_dataloader,
+            module=self.llm, optimizer=self.optimizer, data_loader=test_dataloader,
             target_delta=self.delta, target_epsilon=self.epsilon, epochs=1,
             max_grad_norm=self.max_gradient_norm)
         losses=[]
@@ -67,16 +65,18 @@ class Soft_Prompt():
                         'token_type_ids': batch[2],
                         'labels':         batch[3]}
                 
-                while True:{}
-                pt = self._promptDPSGD(inputs)
+                while True:
+                    pt = self._promptDPSGD(inputs)
                 
-                lp_output = self._llm_withou_inner_embedding(
-                    self._llm_inner_embedding_output(inputs['input_ids'], 
-                                                     torch.cat([pt]*inputs['input_ids'].size(0), 0)))[0]#.detach()
+                    lp_output = llm_model(inputs['input_ids'], [pt])[0]#.detach()
                 
-                eps = self.privacy_engine.get_epsilon(self.delta)
+                    eps = self.privacy_engine.get_epsilon(self.delta)
+                    print(eps)
+                    if eps < self.epsilon:
+                        print('ok')
+                        break
 
-                losses.append(self.loss_fn(lp_output, inputs['label']))
+                losses.append(self.loss_fn(lp_output, inputs['labels']))
                 
                 preds = np.argmax(lp_output.detach().cpu().numpy(), axis=1)
                 labels = inputs['labels'].detach().cpu().numpy()
@@ -89,15 +89,17 @@ class Soft_Prompt():
     def _promptDPSGD (self, inputs):
         pt = torch.rand((1, self.sequence_length, self.embedding_dim), requires_grad=True)
         for t in range(self.training_iteration):
+            #print(len(inputs[list(inputs.keys())[0]]))
             Bt_index = random.sample(range(0, len(inputs[list(inputs.keys())[0]])), 
-                               self.sampling_rate*len(inputs[list(inputs.keys())[0]]))
+                               int(self.sampling_rate*len(inputs[list(inputs.keys())[0]])))
             gts=[]
             for i in Bt_index:
-                lp_output = self._llm_withou_inner_embedding(
-                    self._llm_inner_embedding_output(inputs['input_ids'][i].unsqueeze(0), 
-                                                     pt))[0]#.detach()
+                #torch.tensor([inputs['input_ids']])
+                lp_output = self.llm(inputs['input_ids'][i].unsqueeze(0), 
+                                     [pt])[0].unsqueeze(0)#.detach()
                 #lp_output.requires_grad = True
-                loss = self.loss_fn(lp_output, inputs['label'][i].unsqueeze(0))
+                
+                loss = self.loss_fn(lp_output, inputs['labels'][i].unsqueeze(0))
                 gt_xi = torch.autograd.grad(loss, pt, allow_unused=True)[0]
                 gt_xi_clip = gt_xi/max(1, torch.norm(gt_xi, p=2)/self.max_gradient_norm)
                 gts.append(gt_xi_clip)
@@ -108,12 +110,8 @@ class Soft_Prompt():
         
         return pt
     
-    def privacy_cost (self, ):
-        pass
-            
-                
-    def _update_model (self):
-        pass
+    def train (self, epochs, train_dataloader):
+        return
             
         
         
