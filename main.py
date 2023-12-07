@@ -6,13 +6,13 @@ import numpy as np
 from dataWorkload.sst2Workload import sst2
 from dp_learning.soft_prompt import Soft_Prompt
 from dp_learning.full_finetune import Full_Fintune
-from transformers import AutoModelForSequenceClassification
+from src.llm_format import LLM_Format
 
 usage = "usage: python main.py -D <dataset> -M <LLM> -E <epsilon>"
 
 parser = optparse.OptionParser(usage=usage)
 parser.add_option("-M", "--method", action="store", dest="method", 
-                  default='Full_Fintune',
+                  default='Soft_Prompt',
                   help="variation is Soft_Prompt, Prefix, LoRA, Full_Fintune, Last_Layer_Finetune")
 parser.add_option("-D", "--dataset", action="store", dest="dataset", 
                   default='sst2',
@@ -28,7 +28,7 @@ DEVICE = torch.device("cpu")#"cuda" if torch.cuda.is_available() else "cpu")
 
 #TRAIN = True
 EPOCH = 10 #if opts.method !=
-BATCH_SIZE = 512
+BATCH_SIZE = 64
 P_LENGTH = 50
 LR = 0.001
 NOISE_SCALE = math.sqrt(2*math.log2(1.25/opts.delta))/opts.epsilon
@@ -39,7 +39,7 @@ TRAINING_ITERATION = 180
 def init (dataset_name, model_name, method_name):
     
     dataWorkload = eval(dataset_name)()
-    llm = AutoModelForSequenceClassification.from_pretrained("prajjwal1/"+ model_name)
+    llm = LLM_Format(model_name)
     #print(llm)
     prompt_learning = eval(method_name)(llm, opts.epsilon, opts.delta,
                                         SAMPLING_RATE, TRAINING_ITERATION, 
