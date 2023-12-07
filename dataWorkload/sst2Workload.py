@@ -29,12 +29,12 @@ class sst2():
             remove(filename)        
         self.dataset_path = dataset_path+'SST-2/'
         train_data = pd.read_csv(self.dataset_path+'train.tsv', sep='\t')
-        test_data = pd.read_csv(self.dataset_path+'test.tsv', sep='\t')
+        test_data = pd.read_csv(self.dataset_path+'dev.tsv', sep='\t')
 
         self.sequence_length = max([len(train_data.iloc[i][0].split(' ')) 
                                     for i in range(len(train_data))])
         
-        self.label_list = ['0','1']
+        self.label_list = [0, 1]
         self.tokenizer = BertTokenizer.from_pretrained("bert-base-cased", 
                                                        do_lower_case=False)
         
@@ -64,7 +64,7 @@ class sst2():
            
             guid = f"{index}-{set_type}"
             examples.append(
-                InputExample(guid=guid, text_a=row['sente'],  label=row['label']))
+                InputExample(guid=guid, text_a=row['sentence'],  label=row['label']))
         return examples
     
     def _df_to_features(self, df, set_type):
